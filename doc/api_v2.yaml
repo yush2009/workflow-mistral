@@ -1,0 +1,499 @@
+swagger: '2.0'
+info:
+  description: >-
+    This is a workflow server.  You can find out more about     api at
+    [https://wiki.orchestrator.yihe.org/workflow/api/v2.html](https://wiki.orchestrator.yihe.org/workflow/api/v2.html)
+    and workflow DSL specification on
+    [https://wiki.orchestrator.yihe.org/workflow/dsl_v2.html](https://wiki.orchestrator.yihe.org/workflow/dsl_v2.html).
+  version: 2.0.0
+  title: Workflow Engine API
+  termsOfService: 'http://yihe.org/terms/'
+  contact:
+    email: maillist@yihe.org
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+host: msb.yihe.org
+basePath: /v2
+tags:
+  - name: definition
+    description: Everything about definitions of workflow and action
+  - name: execution
+    description: Everythins about objects of workflow and action
+schemes:
+  - http
+paths:
+  /workflows/validate:
+    post:
+      tags:
+        - validate
+      summary: Core.ValidateWorflow
+      description: Validate a workflow definition
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: wf_def
+          description: Workflow definition
+          required: true
+          schema:
+            $ref: '#/definitions/NewWorkflow'
+      responses:
+        '200':
+          description: validate OK
+        '405':
+          description: workflow definition validate error.
+          schema:
+            type: string
+  /workflows:
+    post:
+      tags:
+        - definition
+      summary: Core.AddWorkflowDefinition
+      description: Add a new workflow to the workflow engine
+      operationId: addWorkflow
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          description: Workflow object that needs to be added to the workflow engine
+          required: true
+          schema:
+            $ref: '#/definitions/NewWorkflow'
+      responses:
+        '200':
+          description: Workflow definition created.
+          schema:
+            $ref: '#/definitions/Workflow'
+        '405':
+          description: Invalid workflow definition
+          schema:
+            type: string
+  '/workflows/{id}':
+    get:
+      tags:
+        - definition
+      summary: Core.QueryWorkflow
+      description: Return a workflow.
+      operationId: findWorkflowById
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the workflow to retrieve.
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/Workflow'
+        '404':
+          description: Workflow definition not found
+    delete:
+      tags:
+        - definition
+      summary: Core.DeleteWorkflow
+      description: Delete a workflow in engine
+      operationId: deleteWorkflowById
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the workflow to retrieve.
+          required: true
+          type: string
+      responses:
+        '200':
+          description: successful operation
+        '404':
+          description: Workflow definition not found
+        '405':
+          description: Need workflow ID
+        '406':
+          description: Can't delete workflow, because Has RUNNING execution
+
+  /executions:
+    post:
+      tags:
+        - execution
+      summary: Core.StartWorkflow
+      description: Start a workflow = Create a execution.
+      operationId: startWorkflow
+      produces:
+        - application/json
+      parameters:
+        - name: wf_ex
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/NewExecution'
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Execution'
+  '/executions/{id}':
+    get:
+      tags:
+        - execution
+      summary: Core.QueryWorkflowExecution
+      description: Query a workflow execution instance.
+      operationId: QueryWorkflowExecution
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Execution'
+  '/executions/{id}/{do}':
+    put:
+      tags:
+        - execution
+      summary: Core.ChangeWorkflowExecution
+      description: 'Change Execution.state => PAUSED, if you want to pause a execution.'
+      operationId: changeWorkflowExecution
+      produces:
+        - application/json
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+        - name: do
+          in: path
+          required: true
+          type: string
+          enum:
+            - pause
+            - resume
+            - abort
+            - rollback
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Execution'
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Execution not found
+        '499':
+          description: Change execution status faild.
+  /tasks:
+    get:
+      tags:
+        - execution
+      summary: Core.QueryTask
+      description: Query all task execution by execution uuid.
+      parameters:
+        - name: ex_id
+          description: Execution UUID
+          in: query
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Tasks'
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Execution not found
+  '/tasks/{id}':
+    get:
+      tags:
+        - execution
+      summary: Core.QueryTask
+      description: Query a task by task uuid.
+      parameters:
+        - name: id
+          description: Task UUID
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Task'
+        '404':
+          description: Task execution not found
+  '/task_context/{id}':
+    get:
+      tags:
+        - execution
+      summary: Core.QueryTaskContext
+      description: Query a task running context by task uuid. Task MUST stopped.
+      parameters:
+        - name: id
+          description: Task UUID
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/TaskContext'
+        '404':
+          description: Task execution not found
+  '/task_debug/{id}/{do}':
+    get:
+      tags:
+        - execution
+      summary: Core.DebugTask
+      description: Do somthing for debug, Recall action.
+      parameters:
+        - name: id
+          description: Task UUID
+          in: path
+          required: true
+          type: string
+        - name: do
+          in: path
+          required: true
+          type: string
+          enum:
+            - recall
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Task'
+        '404':
+          description: Task execution not found
+  '/tasks/{id}/{do}':
+    put:
+      tags:
+        - execution
+      summary: Core.ChangeTask
+      description: >-
+        When Task.status is Error, change Task.status => RUNNING, if you want to
+        rerun task.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+        - name: do
+          in: path
+          required: true
+          type: string
+          enum:
+            - rerun
+            - pass
+        - name: task_data
+          in: body
+          schema:
+            $ref: '#/definitions/TaskContext'
+      responses:
+        '200':
+          description: OK
+          schema:
+            $ref: '#/definitions/Task'
+        '404':
+          description: Execution not found
+  '/action_executions/{id}':
+    put:
+      tags:
+        - callback
+      summary: Core.ActionCallback
+      description: 'For async api call, MUST call this. Callback-Url in Http header'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+        - name: cb_data
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/ActionResult'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: ActionExecution not found
+definitions:
+  NewWorkflows:
+    type: array
+    items:
+      $ref: '#/definitions/NewWorkflow'
+  NewWorkflow:
+    type: object
+    required:
+      - definition
+    properties:
+      definition:
+        type: string
+      namespace:
+        type: string
+  Workflows:
+    type: array
+    items:
+      $ref: '#/definitions/Workflow'
+  Workflow:
+    type: object
+    required:
+      - name
+      - definition
+    properties:
+      id:
+        type: string
+        example: 123e4567-e89b-12d3-a456-426655440000
+      name:
+        type: string
+        example: CreateL3VPN
+      definition:
+        type: string
+      input:
+        type: string
+        example: '{"first_name": "John", "last_name": "Doe"}'
+      namespace:
+        type: string
+      project_id:
+        type: string
+      scope:
+        type: string
+        enum:
+          - public
+          - private
+      tags:
+        type: array
+        items:
+          type: string
+      created_at:
+        type: string
+      updated_at:
+        type: string
+  NewExecution:
+    type: object
+    properties:
+      input:
+        type: object
+      workflow_id:
+        type: string
+        description: UUID of workflow
+  Execution:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: string
+      description:
+        type: string
+      input:
+        type: string
+        example: '{"first_name": "John", "last_name": "Doe"}'
+      output:
+        type: string
+      params:
+        type: string
+        example: '{"env": {"k2": 123, "k1": "abc"}}'
+      state:
+        type: string
+        enum:
+          - IDLE
+          - RUNNING
+          - SUCCESS
+          - ERROR
+          - PAUSED
+          - CANCELLED
+      state_info:
+        type: string
+      task_execution_id:
+        type: string
+        description: reference to the parent task execution
+      workflow_id:
+        type: string
+      workflow_name:
+        type: string
+      workflow_namespace:
+        type: string
+      created_at:
+        type: string
+      updated_at:
+        type: string
+  Tasks:
+    type: array
+    items:
+      $ref: '#/definitions/Task'
+  Task:
+    type: object
+    required:
+      - id
+    properties:
+      id:
+        type: string
+        example: 123e4567-e89b-12d3-a456-426655440000
+      name:
+        type: string
+      processed:
+        type: boolean
+      published:
+        type: string
+      reset:
+        type: boolean
+      result:
+        type: string
+      runtime_context:
+        type: string
+      state:
+        type: string
+        enum:
+          - IDLE
+          - RUNNING
+          - SUCCESS
+          - ERROR
+          - DELAYED
+      state_info:
+        type: string
+      workflow_execution_id:
+        type: string
+      workflow_id:
+        type: string
+      workflow_name:
+        type: string
+      created_at:
+        type: string
+      updated_at:
+        type: string
+  TaskContext:
+    type: object
+    properties:
+      input:
+        type: object
+        example: {"first_name": "John", "last_name": "Doe"}
+      output:
+        type: object
+        example: {"some_output": "Hello, John Doe!"}
+  ActionResult:
+    type: object
+    properties:
+      id:
+        type: string
+        description: 'UUID of ActionExecution, Action-Execution-Id in HTTP header'
+      output:
+        type: string
+        example: '{"some_output": "Hello, John Doe!"}'
+      state:
+        type: string
+        enum:
+          - SUCCESS
+          - ERROR
